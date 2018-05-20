@@ -16,15 +16,18 @@
  */
 package com.aionemu.gameserver.network.aion.serverpackets;
 
+import java.util.Collection;
+
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.model.gameobjects.Pet;
 import com.aionemu.gameserver.model.gameobjects.PetAction;
 import com.aionemu.gameserver.model.gameobjects.player.PetCommonData;
+import com.aionemu.gameserver.model.templates.item.actions.AdoptPetAction;
+import com.aionemu.gameserver.model.templates.pet.PetDopingEntry;
 import com.aionemu.gameserver.model.templates.pet.PetFunctionType;
 import com.aionemu.gameserver.model.templates.pet.PetTemplate;
 import com.aionemu.gameserver.network.aion.AionConnection;
 import com.aionemu.gameserver.network.aion.AionServerPacket;
-import java.util.Collection;
 
 /**
  * @author M@xx, xTz, Rolandas
@@ -39,10 +42,10 @@ public class SM_PET extends AionServerPacket {
 	private int count;
 	private int subType;
 	private int shuggleEmotion;
-	private int happinessAdded;
-
-	private boolean isLooting;
+	private boolean isActing;
 	private int lootNpcId;
+	private int dopeAction;
+	private int dopeSlot;
 
 	public SM_PET(int subType, int actionId, int objectId, int count, Pet pet) {
 		this.subType = subType;
@@ -50,6 +53,7 @@ public class SM_PET extends AionServerPacket {
 		this.count = count;
 		this.itemObjectId = objectId;
 		this.pet = pet;
+		this.commonData = pet.getCommonData();
 	}
 
 	public SM_PET(int actionId) {
@@ -60,14 +64,28 @@ public class SM_PET extends AionServerPacket {
 		this(0, actionId, 0, 0, pet);
 	}
 
-	public SM_PET(int actionId, boolean isLooting) {
-		this.actionId = actionId;
-		this.isLooting = isLooting;
+	public SM_PET(boolean isLooting) {
+		this.actionId = 13;
+		this.isActing = isLooting;
+		this.subType = 3;
 	}
 
-	public SM_PET(int actionId, boolean isLooting, int npcId) {
-		this(actionId, isLooting);
+	public SM_PET(boolean isLooting, int npcId) {
+		this(isLooting);
 		this.lootNpcId = npcId;
+	}
+
+	public SM_PET(int dopeAction, boolean isBuffing) {
+		this.actionId = 13;
+		this.dopeAction = dopeAction;
+		this.isActing = isBuffing;
+		this.subType = 2;
+	}
+
+	public SM_PET(int dopeAction, int itemId, int slot) {
+		this(dopeAction, true);
+		itemObjectId = itemId; // it's template ID, not objectId though
+		dopeSlot = slot;
 	}
 
 	/**
@@ -77,11 +95,10 @@ public class SM_PET extends AionServerPacket {
 	 * @param pet
 	 * @param shuggleEmotion
 	 */
-	public SM_PET(Pet pet, int subType, int shuggleEmotion, int happinessAdded) {
+	public SM_PET(Pet pet, int subType, int shuggleEmotion) {
 		this(0, PetAction.MOOD.getActionId(), 0, 0, pet);
 		this.shuggleEmotion = shuggleEmotion;
 		this.subType = subType;
-		this.happinessAdded = happinessAdded;
 	}
 
 	/**
@@ -117,6 +134,7 @@ public class SM_PET extends AionServerPacket {
 				writeH(pets.size());
 				for (PetCommonData petCommonData : pets) {
 					petTemplate = DataManager.PET_DATA.getPetTemplate(petCommonData.getPetId());
+					AdoptPetAction adoptAction = petCommonData.getAdoptAction();
 					writeS(petCommonData.getName());
 					writeD(petCommonData.getPetId());
 					writeD(petCommonData.getObjectId());
@@ -124,25 +142,62 @@ public class SM_PET extends AionServerPacket {
 					writeD(0);
 					writeD(0);
 					writeD((int) petCommonData.getBirthday());
-					writeD(0); // accompanying time
+					if (adoptAction == null || adoptAction.getExpireMinutes() == 0)
+						writeD(0); // accompanying time
+					else {
+						int alive = (int) (System.currentTimeMillis() / 1000 - petCommonData.getBirthday());
+						int secondsLeft = adoptAction.getExpireMinutes() * 60 - alive;
+						if (secondsLeft > 0)
+							writeD(secondsLeft);
+						else
+							writeD(0); // TODO: should not go there, has to be removed
+					}
 
+					int specialtyCount = 0;
 					if (petTemplate.ContainsFunction(PetFunctionType.WAREHOUSE)) {
 						writeH(PetFunctionType.WAREHOUSE.getId());
+						specialtyCount++;
 					}
-					else if (petTemplate.ContainsFunction(PetFunctionType.NONE)) {
-						writeH(PetFunctionType.NONE.getId());
+					if (petTemplate.ContainsFunction(PetFunctionType.LOOT)) {
+						writeH(PetFunctionType.LOOT.getId());
+						writeC(0);
+						specialtyCount++;
 					}
-
+					if (petTemplate.ContainsFunction(PetFunctionType.DOPING)) {
+						writeH(PetFunctionType.DOPING.getId());
+						short dopeId = (short) petTemplate.getPetFunction(PetFunctionType.DOPING).getId();
+						PetDopingEntry dope = DataManager.PET_DOPING_DATA.getDopingTemplate(dopeId);
+						writeD(dope.isUseFood() ? petCommonData.getDopingBag().getFoodItem() : 0);
+						writeD(dope.isUseDrink() ? petCommonData.getDopingBag().getDrinkItem() : 0);
+						int[] scrollBag = petCommonData.getDopingBag().getScrollsUsed();
+						if (scrollBag.length == 0) {
+							writeQ(0);
+							writeQ(0);
+							writeQ(0);
+						}
+						else {
+							writeD(scrollBag[0]); // Scroll 1
+							writeD(scrollBag.length > 1 ? scrollBag[1] : 0); // Scroll 2
+							writeD(scrollBag.length > 2 ? scrollBag[2] : 0); // Scroll 3 - no pet supports it yet
+							writeD(scrollBag.length > 3 ? scrollBag[3] : 0); // Scroll 4 - no pet supports it yet
+							writeD(scrollBag.length > 4 ? scrollBag[4] : 0); // Scroll 5 - no pet supports it yet
+							writeD(scrollBag.length > 5 ? scrollBag[5] : 0); // Scroll 6 - no pet supports it yet
+						}
+						specialtyCount++;
+					}
 					if (petTemplate.ContainsFunction(PetFunctionType.FOOD)) {
 						writeH(PetFunctionType.FOOD.getId());
-						writeC(0x10); // seen values 4, 8, 10, 13
-						writeC(petCommonData.getHungryLevel());
-						writeC(0);
-						writeC(0);
+						writeD(petCommonData.getFeedProgress().getDataForPacket());
 						writeD((int) petCommonData.getTime() / 1000);
+						specialtyCount++;
 					}
-					else if (petTemplate.ContainsFunction(PetFunctionType.NONE)
-						|| petTemplate.ContainsFunction(PetFunctionType.WAREHOUSE)) {
+
+					// Pets have only 2 functions max. If absent filled with NONE
+					if (specialtyCount == 0) {
+						writeH(PetFunctionType.NONE.getId());
+						writeH(PetFunctionType.NONE.getId());
+					}
+					else if (specialtyCount == 1) {
 						writeH(PetFunctionType.NONE.getId());
 					}
 
@@ -168,23 +223,35 @@ public class SM_PET extends AionServerPacket {
 				writeD(commonData.getBirthday());
 				writeD(0); // accompanying time
 				petTemplate = DataManager.PET_DATA.getPetTemplate(commonData.getPetId());
+				int specialtyCount = 0;
 				if (petTemplate.ContainsFunction(PetFunctionType.WAREHOUSE)) {
 					writeH(PetFunctionType.WAREHOUSE.getId());
+					specialtyCount++;
 				}
-				else if (petTemplate.ContainsFunction(PetFunctionType.NONE)) {
-					writeH(PetFunctionType.NONE.getId());
+				if (petTemplate.ContainsFunction(PetFunctionType.LOOT)) {
+					writeH(PetFunctionType.LOOT.getId());
+					writeC(0);
+					specialtyCount++;
 				}
-
+				if (petTemplate.ContainsFunction(PetFunctionType.DOPING)) {
+					writeH(PetFunctionType.DOPING.getId());
+					writeQ(0);
+					writeQ(0);
+					writeQ(0);
+					writeQ(0);
+					specialtyCount++;
+				}
 				if (petTemplate.ContainsFunction(PetFunctionType.FOOD)) {
 					writeH(PetFunctionType.FOOD.getId());
-					writeC(0);
-					writeC(0);
-					writeC(0);
-					writeC(0);
-					writeD(0);
+					writeQ(0);
+					specialtyCount++;
 				}
-				else if (petTemplate.ContainsFunction(PetFunctionType.NONE)
-					|| petTemplate.ContainsFunction(PetFunctionType.WAREHOUSE)) {
+				// Pets have only 2 functions max. If absent filled with NONE
+				if (specialtyCount == 0) {
+					writeH(PetFunctionType.NONE.getId());
+					writeH(PetFunctionType.NONE.getId());
+				}
+				else if (specialtyCount == 1) {
 					writeH(PetFunctionType.NONE.getId());
 				}
 
@@ -250,40 +317,40 @@ public class SM_PET extends AionServerPacket {
 				writeC(1);
 				writeC(subType);
 				switch (subType) {
-					case 1:
-						writeD(pet.getCommonData().getHungryLevel());
+					case 1: // eat
+						writeD(commonData.getFeedProgress().getDataForPacket());
 						writeD(0);
 						writeD(itemObjectId);
 						writeD(count);
 						break;
-					case 2:
-						writeD(pet.getCommonData().getHungryLevel());
+					case 2: // eating successful
+						writeD(commonData.getFeedProgress().getDataForPacket());
 						writeD(0);
 						writeD(itemObjectId);
 						writeD(count);
 						writeC(0);
 						break;
-					case 4:
-					case 5:
-						writeD(pet.getCommonData().getHungryLevel());
-						writeD(0);
+					case 3: // not hungry
+					case 4: // cancel feed
+					case 5: // clean feed task
+						writeD(commonData.getFeedProgress().getDataForPacket());
+						writeD((int) commonData.getTime() / 1000);
 						break;
-					case 6:
-						writeD(pet.getCommonData().getHungryLevel());
+					case 6: // give item
+						writeD(commonData.getFeedProgress().getDataForPacket());
 						writeD(0);
 						writeD(itemObjectId);
 						writeC(0);
 						break;
-					case 7:
-						writeD(pet.getCommonData().getHungryLevel());
-						writeD(600);// time
-						writeH(45081);
-						writeH(32830);
+					case 7: // present notification
+						writeD(commonData.getFeedProgress().getDataForPacket());
+						writeD((int) commonData.getTime() / 1000); // time
+						writeD(itemObjectId);
 						writeD(0);
 						break;
-					case 8:
-						writeD(pet.getCommonData().getHungryLevel());
-						writeD((int) pet.getCommonData().getTime() / 1000);
+					case 8: // is full
+						writeD(commonData.getFeedProgress().getDataForPacket());
+						writeD((int) commonData.getTime() / 1000);
 						writeD(itemObjectId);
 						writeD(count);
 						break;
@@ -299,45 +366,65 @@ public class SM_PET extends AionServerPacket {
 					case 0: // check pet status
 						writeC(subType);
 						// desynced feedback data, need to send delta in percents
-						if (pet.getCommonData().getLastSentPoints() < pet.getCommonData().getMoodPoints(true))
-							writeD(pet.getCommonData().getMoodPoints(true) - pet.getCommonData().getLastSentPoints());
+						if (commonData.getLastSentPoints() < commonData.getMoodPoints(true))
+							writeD(commonData.getMoodPoints(true) - commonData.getLastSentPoints());
 						else {
 							writeD(0);
-							pet.getCommonData().setLastSentPoints(pet.getCommonData().getMoodPoints(true));
+							commonData.setLastSentPoints(commonData.getMoodPoints(true));
 						}
 						break;
 					case 2: // emotion sent
 						writeC(subType);
-						writeD(happinessAdded);
+						writeD(0);
 						writeD(pet.getCommonData().getMoodPoints(true));
 						writeD(shuggleEmotion);
-						pet.getCommonData().setLastSentPoints(pet.getCommonData().getMoodPoints(true));
-						pet.getCommonData().setMoodCdStarted(System.currentTimeMillis());
+						commonData.setLastSentPoints(pet.getCommonData().getMoodPoints(true));
+						commonData.setMoodCdStarted(System.currentTimeMillis());
 						break;
 					case 3: // give gift
 						writeC(subType);
 						writeD(pet.getPetTemplate().getConditionReward());
-						pet.getCommonData().setGiftCdStarted(System.currentTimeMillis());
+						commonData.setGiftCdStarted(System.currentTimeMillis());
 						break;
 					case 4: // periodic update
 						writeC(subType);
-						writeD(pet.getCommonData().getMoodPoints(true));
-						writeD(pet.getCommonData().getMoodRemainingTime());
-						writeD(pet.getCommonData().getGiftRemainingTime());
-						pet.getCommonData().setLastSentPoints(pet.getCommonData().getMoodPoints(true));
+						writeD(commonData.getMoodPoints(true));
+						writeD(commonData.getMoodRemainingTime());
+						writeD(commonData.getGiftRemainingTime());
+						commonData.setLastSentPoints(pet.getCommonData().getMoodPoints(true));
 						break;
 				}
 				break;
 			case 13:
-				// looting
-				writeC(3);
-				if (lootNpcId > 0) {
-					writeC(2); // 0x02 display looted msg.
-					writeD(lootNpcId);
+				writeC(subType);
+				if (subType == 2) {
+					writeC(dopeAction);
+					switch (dopeAction) {
+						case 0: // add item
+							writeD(itemObjectId);
+							writeD(dopeSlot);
+							break;
+						case 1: // remove item
+							writeD(0);
+							break;
+						case 2: // TODO: move item from one slot to other
+							break;
+						case 3: // use item
+							writeD(itemObjectId);
+							break;
+					}
 				}
-				else {
-					writeC(0);
-					writeC(isLooting ? 1 : 0);
+				else if (subType == 3) {
+					// looting NPC
+					if (lootNpcId > 0) {
+						writeC(isActing ? 1 : 2); // 0x02 display looted msg.
+						writeD(lootNpcId);
+					}
+					else {
+						// loot function activation
+						writeC(0);
+						writeC(isActing ? 1 : 0);
+					}
 				}
 				break;
 			default:

@@ -19326,8 +19326,8 @@ public class SM_SYSTEM_MESSAGE extends AionServerPacket {
 	/**
 	* %0 spits out %1 and makes a face.
 	*/
-	public static SM_SYSTEM_MESSAGE STR_MSG_TOYPET_FEED_FOOD_NOT_LOVEFLAVOR(String value0, String value1) {
-		return new SM_SYSTEM_MESSAGE(1400618, value0, value1);
+	public static SM_SYSTEM_MESSAGE STR_MSG_TOYPET_FEED_FOOD_NOT_LOVEFLAVOR(String petName, int nameId) {
+		return new SM_SYSTEM_MESSAGE(1400618, petName, new DescriptionId(nameId));
 	}
 
 	/**

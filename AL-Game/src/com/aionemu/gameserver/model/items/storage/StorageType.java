@@ -53,4 +53,12 @@ public enum StorageType {
 		}
 		return null;
 	}
+
+	public static int getStorageId(int limit, int length) {
+		for (StorageType st : values()) {
+			if (st.limit == limit && st.length == length)
+				return st.id;
+		}
+		return -1;
+	}
 }

@@ -86,7 +86,7 @@ public class PetAdoptionService {
 	public static void surrenderPet(Player player, int petId) {
 		PetCommonData petCommonData = player.getPetList().getPet(petId);
 		if (player.getPet() != null && player.getPet().getPetId() == petCommonData.getPetId()) {
-			petCommonData.setCancelFood(true);
+			petCommonData.setCancelFeed(true);
 			PetSpawnService.dismissPet(player, false);
 		}
 		player.getPetList().deletePet(petCommonData.getPetId());

@@ -19,6 +19,8 @@ package com.aionemu.gameserver.world.zone;
 import javax.xml.bind.annotation.XmlEnum;
 import javax.xml.bind.annotation.XmlType;
 
+import javolution.util.FastMap;
+
 /**
  * @author ATracer, Destin
  * @modified vlog
@@ -1274,5 +1276,14 @@ public enum ZoneName {
 	CORE2_400010000,
 
 	// Siege weapon use area
-	_ABYSS_CASTLE_AREA_;
+	_ABYSS_CASTLE_AREA_, NONE;
+	
+	private static final FastMap<String, ZoneName> zoneNames = new FastMap<String, ZoneName>();
+
+	public static final ZoneName get(String name) {
+		name = name.toUpperCase();
+		if (zoneNames.containsKey(name))
+			return zoneNames.get(name);
+		return zoneNames.get(NONE);
+	}
 }

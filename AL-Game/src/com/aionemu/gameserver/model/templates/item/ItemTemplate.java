@@ -214,8 +214,11 @@ public class ItemTemplate extends VisibleObjectTemplate {
 	@XmlAttribute(name = "burn_defend")
 	private int burnDefend;
 
-  @XmlElement(name = "tradein_list")
-  protected TradeinList tradeinList;
+	@XmlElement(name = "tradein_list")
+	protected TradeinList tradeinList;
+  
+  	@XmlElement(name = "uselimits")
+	private ItemUseLimits useLimits = new ItemUseLimits();
 
 	/**
 	 * @param u
@@ -588,6 +591,13 @@ public class ItemTemplate extends VisibleObjectTemplate {
 	 */
 	public TradeinList getTradeinList() {
 		return tradeinList;
+	}
+	
+	/**
+	 * @return the useLimits
+	 */
+	public ItemUseLimits getUseLimits() {
+		return useLimits;
 	}
 
 }

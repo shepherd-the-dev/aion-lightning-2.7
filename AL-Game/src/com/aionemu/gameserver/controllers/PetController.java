@@ -61,11 +61,11 @@ public class PetController extends VisibleObjectController<Pet> {
 				int currentPoints = 0;
 				boolean saved = false;
 
-				if (pet.getCommonData().getMoodPoints(false) < 10000) {
+				if (pet.getCommonData().getMoodPoints(false) < 9000) {
 					if (System.currentTimeMillis() - startTime >= 60 * 1000) {
 						currentPoints = pet.getCommonData().getMoodPoints(false);
-						if (currentPoints == 10000) {
-							PacketSendUtility.sendPacket(player, new SM_PET(pet, 4, 0, 0));
+						if (currentPoints == 9000) {
+							PacketSendUtility.sendPacket(player, new SM_PET(pet, 4, 0));
 						}
 
 						DAOManager.getDAO(PlayerPetsDAO.class).savePetMoodData(pet.getCommonData());
@@ -74,11 +74,11 @@ public class PetController extends VisibleObjectController<Pet> {
 					}
 				}
 
-				if (currentPoints < 10000) {
-					PacketSendUtility.sendPacket(player, new SM_PET(pet, 4, 0, 0));
+				if (currentPoints < 9000) {
+					PacketSendUtility.sendPacket(player, new SM_PET(pet, 4, 0));
 				}
 				else {
-					PacketSendUtility.sendPacket(player, new SM_PET(pet, 3, 0, 0));
+					PacketSendUtility.sendPacket(player, new SM_PET(pet, 3, 0));
 					// Save if it reaches 100% after player snuggles the pet, not by the scheduler itself
 					if (!saved)
 						DAOManager.getDAO(PlayerPetsDAO.class).savePetMoodData(pet.getCommonData());

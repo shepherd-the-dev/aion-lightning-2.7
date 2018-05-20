@@ -48,6 +48,7 @@ public class ItemPacketService {
 		INC_KINAH_LOOT(0x1A, true),
 		DEC_KINAH(0x1D, true),
 		INC_KINAH_QUEST(0x32, true),
+		DEC_PET_FOOD(0x5E, true),
 		DEFAULT(0x16, true);
 
 		private final int mask;

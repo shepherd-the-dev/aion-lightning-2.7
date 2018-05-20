@@ -76,4 +76,14 @@ public class ItemActions {
 		return result;
 	}
 
+	public AdoptPetAction getAdoptPetAction() {
+		if (itemActions == null)
+			return null;
+		for (AbstractItemAction action : itemActions) {
+			if (action instanceof AdoptPetAction)
+				return (AdoptPetAction) action;
+		}
+		return null;
+	}
+
 }

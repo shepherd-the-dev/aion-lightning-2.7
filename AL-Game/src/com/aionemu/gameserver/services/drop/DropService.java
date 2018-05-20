@@ -258,8 +258,48 @@ public class DropService {
 		}
 		return true;
 	}
+	
+	public boolean canAutoLoot(Player player, DropItem requestedItem) {
+		int npcId = requestedItem.getNpcObj();
+		final DropNpc dropNpc = DropRegistrationService.getInstance().getDropRegistrationMap().get(npcId);
+		if (dropNpc == null) {
+			return false;
+		}
+		LootGroupRules lootGroupRules = player.getLootGroupRules();
+		if (lootGroupRules == null) {
+			return true;
+		}
 
+		int itemId = requestedItem.getDropTemplate().getItemId();
+		ItemQuality quality = ItemInfoService.getQuality(itemId);
+		if (itemId == 182400001)
+			return true;
+
+		int distId = lootGroupRules.getAutodistribution().getId();
+		if (dropNpc.getGroupSize() <= 1) {
+			distId = 0;
+			dropNpc.setDistributionId(distId);
+		}
+
+		if (distId > 1 && lootGroupRules.getQualityRule(quality)) {
+			boolean anyOnline = false;
+			for (Player member : dropNpc.getInRangePlayers()) {
+				Player finalPlayer = World.getInstance().findPlayer(member.getObjectId());
+				if (finalPlayer != null && finalPlayer.isOnline()) {
+					anyOnline = true;
+					break;
+				}
+			}
+			return !anyOnline;
+		}
+		return true;
+	}
+	
 	public void requestDropItem(Player player, int npcId, int itemIndex) {
+		requestDropItem(player, npcId, itemIndex, false);
+	}
+
+	public void requestDropItem(Player player, int npcId, int itemIndex, boolean autoLoot) {
 
 		Set<DropItem> dropItems = DropRegistrationService.getInstance().geCurrentDropMap().get(npcId);
 		DropNpc dropNpc = DropRegistrationService.getInstance().getDropRegistrationMap().get(npcId);
@@ -293,9 +333,14 @@ public class DropService {
 		LootGroupRules lootGrouRules = player.getLootGroupRules();
 		if (lootGrouRules != null && !requestedItem.isDistributeItem() && !requestedItem.isFreeForAll()) {
 			if (lootGrouRules.containDropItem(requestedItem)) {
-				PacketSendUtility.sendPacket(player, new SM_SYSTEM_MESSAGE(1390219));
+				if (!autoLoot)
+					PacketSendUtility.sendPacket(player, new SM_SYSTEM_MESSAGE(1390219));
 				return;
 			}
+			
+			if (autoLoot && !canAutoLoot(player, requestedItem))
+				return;
+			
 			requestedItem.setNpcObj(npcId);
 			if (!canDistribute(player, requestedItem)) {
 				return;
@@ -322,6 +367,23 @@ public class DropService {
 			&& dropNpc.getDistributionId() == 0) {
 			currentDropItemCount = ItemService.addItem(player, itemId, currentDropItemCount, DEFAULT_DROP_PREDICATE);
 			uniqueDropAnnounce(player, requestedItem);
+		}
+		
+		if (autoLoot) {
+			if (currentDropItemCount <= 0) {
+				synchronized (dropItems) {
+					dropItems.remove(requestedItem);
+				}
+			}
+			else
+				requestedItem.setCount(currentDropItemCount);
+				if (dropItems.size() == 0) {
+					Npc npc = (Npc) World.getInstance().findVisibleObject(npcId);
+					if (npc != null && !npc.getPosition().isInstanceMap()) {
+						npc.getController().onDelete();
+					}
+				}
+			return;
 		}
 		else if (!requestedItem.isDistributeItem()) {
 			if (player.isInGroup2() || player.isInAlliance2()) {
