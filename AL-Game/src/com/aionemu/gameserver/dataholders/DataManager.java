@@ -113,6 +113,10 @@ public final class DataManager {
 
 	public static PetData PET_DATA;
 
+	public static PetFeedData PET_FEED_DATA;
+
+	public static PetDopingData PET_DOPING_DATA;
+
 	public static RoadData ROAD_DATA;
 
 	public static InstanceCooltimeData INSTANCE_COOLTIME_DATA;
@@ -199,6 +203,8 @@ public final class DataManager {
 		FLY_RING_DATA = data.flyRingData;
 		SHIELD_DATA = data.shieldData;
 		PET_DATA = data.petData;
+		PET_FEED_DATA = data.petFeedData;
+		PET_DOPING_DATA = data.petDopingData;
 		GUIDE_HTML_DATA = data.guideData;
 		ROAD_DATA = data.roadData;
 		INSTANCE_COOLTIME_DATA = data.instanceCooltimeData;

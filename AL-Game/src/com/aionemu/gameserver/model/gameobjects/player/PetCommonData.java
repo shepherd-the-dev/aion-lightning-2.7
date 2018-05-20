@@ -20,7 +20,12 @@ import java.sql.Timestamp;
 
 import com.aionemu.commons.database.dao.DAOManager;
 import com.aionemu.gameserver.dao.PlayerPetsDAO;
+import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.model.templates.VisibleObjectTemplate;
+import com.aionemu.gameserver.model.templates.pet.PetDopingBag;
+import com.aionemu.gameserver.model.templates.pet.PetFunctionType;
+import com.aionemu.gameserver.model.templates.pet.PetTemplate;
+import com.aionemu.gameserver.services.toypet.PetFeedProgress;
 import com.aionemu.gameserver.utils.ThreadPoolManager;
 import com.aionemu.gameserver.utils.idfactory.IDFactory;
 
@@ -51,10 +56,22 @@ public class PetCommonData extends VisibleObjectTemplate {
 	private long giftCdStarted;
 	private Timestamp despawnTime;
 
+	private boolean isLooting = false;
+	private boolean isBuffing = false;
+
 	public PetCommonData(int petId, int masterObjectId) {
 		this.petObjectId = IDFactory.getInstance().nextId();
 		this.petId = petId;
 		this.masterObjectId = masterObjectId;
+		PetTemplate template = DataManager.PET_DATA.getPetTemplate(petId);
+		if (template.ContainsFunction(PetFunctionType.FOOD)) {
+			int flavourId = template.getPetFunction(PetFunctionType.FOOD).getId(); 
+			int lovedLimit = DataManager.PET_FEED_DATA.getFlavourById(flavourId).getLovedFoodLimit();
+			//feedProgress = new PetFeedProgress((byte) (lovedLimit & 0xFF));
+		}
+		if (template.ContainsFunction(PetFunctionType.DOPING)) {
+			//dopingBag = new PetDopingBag();
+		}
 	}
 
 	public final int getDecoration() {

@@ -142,6 +142,12 @@ public class StaticData {
 	@XmlElement(name = "pets")
 	public PetData petData;
 
+	@XmlElement(name = "pet_feed")
+	public PetFeedData petFeedData;
+
+	@XmlElement(name = "dopings")
+	public PetDopingData petDopingData;
+
 	@XmlElement(name = "guides")
 	public GuideHtmlData guideData;
 
@@ -231,7 +237,8 @@ public class StaticData {
 		DataManager.log.info("Loaded " + siegeLocationData.size() + " siege location entries");
 		DataManager.log.info("Loaded " + flyRingData.size() + " fly ring entries");
 		DataManager.log.info("Loaded " + shieldData.size() + " shield entries");
-		DataManager.log.info("Loaded " + petData.size() + " pet entries");
+		DataManager.log.info("Loaded " + petData.size() + " pet templates " + petFeedData.size() + " food flavours");
+		DataManager.log.info("Loaded " + petDopingData.size() + " pet doping templates");
 		DataManager.log.info("Loaded " + guideData.size() + " guide entries");
 		DataManager.log.info("Loaded " + roadData.size() + " road entries");
 		DataManager.log.info("Loaded " + instanceCooltimeData.size() + " instance cooltime entries");

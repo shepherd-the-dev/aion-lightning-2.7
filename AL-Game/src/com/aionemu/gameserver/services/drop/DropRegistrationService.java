@@ -29,9 +29,14 @@ import org.slf4j.LoggerFactory;
 
 import javolution.util.FastMap;
 
+
+
+
 import com.aionemu.commons.utils.Rnd;
+//import com.aionemu.commons.utils.Rnd;
 import com.aionemu.gameserver.ai2.event.AIEventType;
 import com.aionemu.gameserver.configs.custom.CustomDrop;
+//import com.aionemu.gameserver.configs.custom.CustomDrop;
 import com.aionemu.gameserver.configs.main.DropConfig;
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.dataholders.NpcDropData;
@@ -45,8 +50,11 @@ import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.stats.container.StatEnum;
 import com.aionemu.gameserver.model.team2.common.legacy.LootGroupRules;
 import com.aionemu.gameserver.model.templates.item.ItemTemplate;
+//import com.aionemu.gameserver.model.templates.item.ItemTemplate;
 import com.aionemu.gameserver.model.templates.npc.NpcTemplate;
+import com.aionemu.gameserver.model.templates.pet.PetFunctionType;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_LOOT_STATUS;
+import com.aionemu.gameserver.network.aion.serverpackets.SM_PET;
 import com.aionemu.gameserver.services.QuestService;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.stats.DropRewardEnum;
@@ -136,13 +144,13 @@ public class DropRegistrationService {
 		if (!player.isInGroup2() && !player.isInAlliance2()) {
 			boostDropRate = player.getGameStats().getStat(StatEnum.BOOST_DROP_RATE, 100).getCurrent() / 100f;
 		}
-		
+
 		float dropRate = player.getRates().getDropRate() * boostDropRate * dropChance / 100F;
 		
 		//custom drop
 		
-		if(CustomDrop.ENABLED && (!CustomDrop.ONLY_HIGH_LVL || heighestLevel <= npc.getLevel())){
-			for(Drop drop : CustomDrop.getCustomDrops()){
+		if(CustomDrop.ENABLED && (!CustomDrop.ONLY_HIGH_LVL || heighestLevel <= npc.getLevel()))
+			for(Drop drop : CustomDrop.getCustomDrops())
 				if(drop != null){
 					if(Rnd.get() * 100 < drop.getChance()){
 						DropItem dropitem = new DropItem(drop);
@@ -154,8 +162,6 @@ public class DropRegistrationService {
 							log.info("[CustomDrop] invalid itemId");
 					}
 				}
-			}
-		}
 		
 		
 		if (npcDrop != null) {
@@ -235,6 +241,26 @@ public class DropRegistrationService {
 
 		for (Player p : dropPlayers) {
 			PacketSendUtility.sendPacket(p, new SM_LOOT_STATUS(npcObjId, 0));
+		}
+		
+		// Add function pet drop
+		if (player.getPet() != null && player.getPet().getPetTemplate().getPetFunction(PetFunctionType.LOOT) != null &&
+				player.getPet().getCommonData().isLooting()) {
+			PacketSendUtility.sendPacket(player, new SM_PET(npcObjId, true));
+			Set<DropItem> drops = geCurrentDropMap().get(npcObjId);
+			if (drops == null || drops.size() == 0) {
+				npc.getController().onDelete();
+			}
+			else {
+				DropItem[] dropItems = drops.toArray(new DropItem[0]);
+				for (int i = 0; i < dropItems.length; i++) {
+					DropService.getInstance().requestDropItem(player, npcObjId, dropItems[i].getIndex(), true);
+				}
+			}
+			PacketSendUtility.sendPacket(player, new SM_PET(npcObjId, false));
+			// if everything was looted, npc is deleted
+			/*if (drops == null || drops.size() == 0)
+				return;*/
 		}
 		DropService.getInstance().scheduleFreeForAll(npcObjId);
 	}

@@ -24,6 +24,7 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 import com.aionemu.gameserver.model.templates.stats.PetStatsTemplate;
 
@@ -46,6 +47,8 @@ public class PetTemplate {
 	private List<PetFunction> petFunctions;
 	@XmlElement(name = "petstats")
 	private PetStatsTemplate petStats;
+	@XmlTransient
+	Boolean hasPlayerFuncs = null;
 
 	public int getId() {
 		return id;
@@ -60,10 +63,23 @@ public class PetTemplate {
 	}
 
 	public List<PetFunction> getPetFunction() {
-		if (petFunctions == null) {
-			List<PetFunction> result = new ArrayList<PetFunction>();
-			result.add(PetFunction.CreateEmpty());
-			petFunctions = result;
+		if (hasPlayerFuncs == null) {
+			hasPlayerFuncs = false;
+			if (petFunctions == null) {
+				List<PetFunction> result = new ArrayList<PetFunction>();
+				result.add(PetFunction.CreateEmpty());
+				petFunctions = result;
+			}
+			else {
+				for (PetFunction func : petFunctions) {
+					if (func.getPetFunctionType().isPlayerFunction()) {
+						hasPlayerFuncs = true;
+						break;
+					}
+				}
+				if (!hasPlayerFuncs)
+					petFunctions.add(PetFunction.CreateEmpty());
+			}
 		}
 		return petFunctions;
 	}
@@ -90,6 +106,17 @@ public class PetTemplate {
 				return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Returns function if found, otherwise null
+	 */
+	public PetFunction getPetFunction(PetFunctionType type) {
+		for (PetFunction t : getPetFunction()) {
+			if (t.getPetFunctionType() == type)
+				return t;
+		}
+		return null;
 	}
 
 	public PetStatsTemplate getPetStats() {
