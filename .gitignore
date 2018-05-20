@@ -1,13 +1,10 @@
-.settings
-build
-config/network
-dist
-libs
-sql
-test
-*.*~
-.classpath
-.project
-/*.xml
-/*.bat
-/bin/
+### Eclipse
+**/.classpath
+**/.settings
+**/.project
+
+### Aion
+target/
+build/
+*.class
+
