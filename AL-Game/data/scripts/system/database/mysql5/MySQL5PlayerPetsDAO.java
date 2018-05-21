@@ -30,6 +30,8 @@ import com.aionemu.commons.database.DatabaseFactory;
 import com.aionemu.gameserver.dao.PlayerPetsDAO;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.gameobjects.player.PetCommonData;
+import com.aionemu.gameserver.model.templates.pet.PetDopingBag;
+import com.aionemu.gameserver.services.toypet.PetHungryLevel;
 
 /**
  * @author M@xx, xTz, Rolandas
@@ -37,7 +39,55 @@ import com.aionemu.gameserver.model.gameobjects.player.PetCommonData;
 public class MySQL5PlayerPetsDAO extends PlayerPetsDAO {
 
 	private static final Logger log = LoggerFactory.getLogger(MySQL5PlayerPetsDAO.class);
+	
+	@Override
+	public void saveFeedStatus(Player player, int petId, int hungryLevel, int feedProgress, long reuseTime) {
+		Connection con = null;
+		try {
+			con = DatabaseFactory.getConnection();
+			PreparedStatement stmt = con
+				.prepareStatement("UPDATE player_pets SET hungry_level = ?, feed_progress = ?, reuse_time = ? WHERE player_id = ? AND pet_id = ?");
+			stmt.setInt(1, hungryLevel);
+			stmt.setInt(2, feedProgress);
+			stmt.setLong(3, reuseTime);
+			stmt.setInt(4, player.getObjectId());
+			stmt.setInt(5, petId);
+			stmt.execute();
+			stmt.close();
+		}
+		catch (Exception e) {
+			log.error("Error update pet #" + petId, e);
+		}
+		finally {
+			DatabaseFactory.close(con);
+		}
+	}
+	
+	@Override
+	public void saveDopingBag(Player player, int petId, PetDopingBag bag) {
+		Connection con = null;
+		try {
+			con = DatabaseFactory.getConnection();
+			PreparedStatement stmt = con
+				.prepareStatement("UPDATE player_pets SET dopings = ? WHERE player_id = ? AND pet_id = ?");
+			String itemIds = bag.getFoodItem() + "," + bag.getDrinkItem();
+			for (int itemId : bag.getScrollsUsed())
+				itemIds += "," + Integer.toString(itemId);
+			stmt.setString(1, itemIds);
+			stmt.setInt(2, player.getObjectId());
+			stmt.setInt(3, petId);
+			stmt.execute();
+			stmt.close();
+		}
+		catch (Exception e) {
+			log.error("Error update doping for pet #" + petId, e);
+		}
+		finally {
+			DatabaseFactory.close(con);
+		}
+	}
 
+	@Deprecated
 	@Override
 	public void setHungryLevel(Player player, int petId, int hungryLevel) {
 		Connection con = null;
@@ -135,8 +185,19 @@ public class MySQL5PlayerPetsDAO extends PlayerPetsDAO {
 				PetCommonData petCommonData = new PetCommonData(rs.getInt("pet_id"), player.getObjectId());
 				petCommonData.setName(rs.getString("name"));
 				petCommonData.setDecoration(rs.getInt("decoration"));
-				petCommonData.setHungryLevel(rs.getInt("hungry_level"));
-				petCommonData.setCurentTime(rs.getLong("reuse_time"));
+				if (petCommonData.getFeedProgress() != null) {
+					petCommonData.getFeedProgress().setHungryLevel(PetHungryLevel.fromId(rs.getInt("hungry_level")));
+					petCommonData.getFeedProgress().setData(rs.getInt("feed_progress"));
+					petCommonData.setCurentTime(rs.getLong("reuse_time"));
+				}
+				if (petCommonData.getDopingBag() != null) {
+					String dopings = rs.getString("dopings");
+					if (dopings != null) {
+						String[] ids = dopings.split(",");
+						for (int i = 0; i < ids.length; i++)
+							petCommonData.getDopingBag().setItem(Integer.parseInt(ids[i]), i);
+					}
+				}
 				petCommonData.setBirthday(rs.getTimestamp("birthday"));
 				if (petCommonData.getTime() != 0) {
 					petCommonData.setIsFeedingTime(false);
