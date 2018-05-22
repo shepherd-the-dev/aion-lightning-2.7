@@ -16,6 +16,9 @@
  */
 package com.aionemu.gameserver.services.item;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aionemu.gameserver.configs.main.LegionConfig;
 import com.aionemu.gameserver.model.gameobjects.Item;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
@@ -32,6 +35,7 @@ import com.aionemu.gameserver.utils.PacketSendUtility;
  */
 public class ItemRestrictionService {
 
+	private static Logger log = LoggerFactory.getLogger(ItemRestrictionService.class);
 	/**
 	 * Check if item can be moved from storage by player
 	 */
@@ -55,6 +59,10 @@ public class ItemRestrictionService {
 	 */
 	public static boolean isItemRestrictedTo(Player player, Item item, byte storage) {
 		StorageType type = StorageType.getStorageTypeById(storage);
+		if(type == null) {
+			log.warn("Unknown storage type: " + storage);
+			return true;
+		}
 		switch (type) {
 			case REGULAR_WAREHOUSE:
 				if (!item.isStorableinWarehouse(player)) {
